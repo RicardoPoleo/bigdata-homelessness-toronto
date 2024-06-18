@@ -4,6 +4,7 @@ import zipfile
 import json
 import csv
 
+
 class OpenTorontoDownloader:
     def __init__(self, debug=False):
         self.base_url = "https://ckan0.cf.opendata.inter.prod-toronto.ca"
@@ -35,6 +36,10 @@ class OpenTorontoDownloader:
             package_id = self.extract_package_id_from_url(page_url)
             for resource in package["resources"]:
                 if not resource["datastore_active"]:
+
+                    if not resource["size"]:
+                        resource["size"] = 0
+
                     formated_datasets.append({
                         "page_url": page_url,
                         "package_id": package_id,
@@ -72,12 +77,18 @@ class OpenTorontoDownloader:
         print(f"Downloaded {filename} to {filepath}")
         return filepath
 
-    def download_datasets(self, output_directory='.'):
+    def download_datasets(self, output_directory='.', process_after_download=False):
         loaded_datasets = self.get_datasets()
         for ds in loaded_datasets:
-            print(f"Downloading {ds['name']} ({ds['size']:.2f} MB) to folder {ds['package_id']}...")
-            filepath = self.download_dataset(ds['url'], ds['package_id'], output_directory)
-            self.process_file(filepath)
+            try:
+                print(f"Downloading {ds['name']} ({ds['size']:.2f} MB) to folder {ds['package_id']}...")
+                filepath = self.download_dataset(ds['url'], ds['package_id'], output_directory)
+                if process_after_download:
+                    self.process_file(filepath)
+            except requests.exceptions.HTTPError as e:
+                print(f"HTTP error occurred while downloading {ds['name']}: {e}")
+            except Exception as e:
+                print(f"An error occurred while processing {ds['name']}: {e}")
         print("All datasets downloaded.")
 
     def process_file(self, filepath):
@@ -117,4 +128,3 @@ class OpenTorontoDownloader:
                 # Process CSV data as needed
                 for row in reader:
                     print(row)
-
