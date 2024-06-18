@@ -1,5 +1,6 @@
 # ignore .idea/misc.xml
 .idea/*
+!.idea/.gitignore
 
 # Ignore __pycache__ directory
 __pycache__/
