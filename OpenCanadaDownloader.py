@@ -30,29 +30,32 @@ class OpenTorontoDownloader:
             self.packages[url] = self.get_package_metadata(url)
         print(f"Loaded {len(page_urls)} pages.")
 
-    def get_datasets(self):
+    def get_datasets(self, extension=None):
         formated_datasets = []
         for page_url, package in self.packages.items():
             package_id = self.extract_package_id_from_url(page_url)
             for resource in package["resources"]:
-                if not resource["datastore_active"]:
-
+                try:
                     if not resource["size"]:
                         resource["size"] = 0
 
-                    formated_datasets.append({
-                        "page_url": page_url,
-                        "package_id": package_id,
-                        "name": resource["name"],
-                        "last_modified": resource["last_modified"],
-                        "type": resource["format"],
-                        "size": resource["size"] / (1024 * 1024),  # Convert bytes to megabytes
-                        "url": resource["url"]
-                    })
+                    if extension is None or resource["format"].lower() == extension.lower():
+                        formated_datasets.append({
+                            "page_url": page_url,
+                            "package_id": package_id,
+                            "name": resource["name"],
+                            "last_modified": resource["last_modified"],
+                            "type": resource["format"],
+                            "size": resource["size"] / (1024 * 1024),  # Convert bytes to megabytes
+                            "url": resource["url"]
+                        })
+                except KeyError:
+                    print(f"Warning! The resource {resource['name']} is missing required fields.")
+
         return formated_datasets
 
-    def get_datasets_info(self):
-        datasets = self.get_datasets()
+    def get_datasets_info(self, extension=None):
+        datasets = self.get_datasets(extension)
         for idx, dataset in enumerate(datasets):
             print(
                 f"{idx}) Page URL: {dataset['page_url']}, Name: {dataset['name']}, Last Modified: {dataset['last_modified']}, Type: {dataset['type']}, Size: {dataset['size']:.2f} MB, URL: {dataset['url']}")
@@ -77,8 +80,8 @@ class OpenTorontoDownloader:
         print(f"Downloaded {filename} to {filepath}")
         return filepath
 
-    def download_datasets(self, output_directory='.', process_after_download=False):
-        loaded_datasets = self.get_datasets()
+    def download_datasets(self, output_directory='.', process_after_download=False, extension=None):
+        loaded_datasets = self.get_datasets(extension)
         for ds in loaded_datasets:
             try:
                 print(f"Downloading {ds['name']} ({ds['size']:.2f} MB) to folder {ds['package_id']}...")
