@@ -5,20 +5,21 @@ import json
 import csv
 
 
+def extract_package_id_from_url(url):
+    # Extracts the package ID from the URL
+    # Assuming the ID is the last part of the URL after the last slash
+    return url.rstrip('/').split('/')[-1]
+
+
 class OpenTorontoDownloader:
     def __init__(self, debug=False):
         self.base_url = "https://ckan0.cf.opendata.inter.prod-toronto.ca"
         self.packages = {}  # Store packages with their URL as the key
         self.debug = debug  # Debug flag
 
-    def extract_package_id_from_url(self, url):
-        # Extracts the package ID from the URL
-        # Assuming the ID is the last part of the URL after the last slash
-        return url.rstrip('/').split('/')[-1]
-
     def get_package_metadata(self, page_url):
         # Retrieves package metadata from the API
-        package_id = self.extract_package_id_from_url(page_url)
+        package_id = extract_package_id_from_url(page_url)
         url = f"{self.base_url}/api/3/action/package_show"
         params = {"id": package_id}
         response = requests.get(url, params=params)
@@ -33,13 +34,13 @@ class OpenTorontoDownloader:
     def get_datasets(self, extension=None):
         formated_datasets = []
         for page_url, package in self.packages.items():
-            package_id = self.extract_package_id_from_url(page_url)
+            package_id = extract_package_id_from_url(page_url)
             for resource in package["resources"]:
                 try:
                     if not resource["size"]:
                         resource["size"] = 0
 
-                    if extension is None or resource["format"].lower() == extension.lower():
+                    if extension is None or resource["format"].lower() in extension:
                         formated_datasets.append({
                             "page_url": page_url,
                             "package_id": package_id,
@@ -49,6 +50,8 @@ class OpenTorontoDownloader:
                             "size": resource["size"] / (1024 * 1024),  # Convert bytes to megabytes
                             "url": resource["url"]
                         })
+                    else:
+                        print(f"Skipping {resource['name']} with format {resource['format']}")
                 except KeyError:
                     print(f"Warning! The resource {resource['name']} is missing required fields.")
 
@@ -83,9 +86,15 @@ class OpenTorontoDownloader:
     def download_datasets(self, output_directory='.', process_after_download=False, extension=None):
         loaded_datasets = self.get_datasets(extension)
         for ds in loaded_datasets:
+            # Check if the output_directory exists or create it
+            if not os.path.exists(output_directory):
+                os.makedirs(output_directory)
+                print(f"Created directory: {output_directory}")
+
             try:
                 print(f"Downloading {ds['name']} ({ds['size']:.2f} MB) to folder {ds['package_id']}...")
                 filepath = self.download_dataset(ds['url'], ds['package_id'], output_directory)
+                print(f" Downloaded {ds['name']} to {filepath}")
                 if process_after_download:
                     self.process_file(filepath)
             except requests.exceptions.HTTPError as e:

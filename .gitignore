@@ -1,4 +1,5 @@
 # ignore .idea/misc.xml
+.idea/
 .idea/*
 !.idea/.gitignore
 
