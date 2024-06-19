@@ -1,8 +1,8 @@
 import sys
 import os
 
-from sources.OpenTorontoDownloader import OpenTorontoDownloader
-from sources.config import (
+from OpenTorontoDownloader import OpenTorontoDownloader
+from config import (
     ADDITIONAL_DATA_DIR,
     CLIMATE_DATA_DIR,
     HOMELESS_DATA_DIR,
@@ -138,10 +138,5 @@ def download_all_datasets():
     download_additional_data()
     download_social_media_data()
 
-# if __name__ == "__main__":
-#     di.download_homeless_data()
-#     di.download_housing_data()
-#     di.download_socio_economic()
-#     di.download_climate_data()
-#     di.download_additional_data()
-#     di.download_social_media_data()
+if __name__ == "__main__":
+    download_all_datasets()
