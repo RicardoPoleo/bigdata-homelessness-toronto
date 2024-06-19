@@ -18,7 +18,7 @@ sys.path.append(os.path.join(project_dir, 'sources'))
 sys.path.append(os.path.join(project_dir, 'scripts'))
 
 
-ALLOWED_EXTENSIONS = ["csv", "xlsx", "zip", "json"]
+ALLOWED_EXTENSIONS = []
 
 
 def download_urls_to_dir(urls, output_dir):
