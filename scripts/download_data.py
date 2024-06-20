@@ -18,7 +18,7 @@ sys.path.append(os.path.join(project_dir, 'sources'))
 sys.path.append(os.path.join(project_dir, 'scripts'))
 
 
-ALLOWED_EXTENSIONS = ['.csv', '.xml', '.json', '.xlsx', '.xls', '.shp', '.gpkg', '.geojson']
+ALLOWED_EXTENSIONS = None
 #ALLOWED_EXTENSIONS = ['.csv', '.xml', '.json', '.xlsx', '.xls', '.zip', '.shp', '.gpkg', '.geojson']
 
 
