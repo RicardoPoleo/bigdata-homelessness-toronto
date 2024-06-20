@@ -17,8 +17,7 @@ project_dir = os.path.abspath(os.path.join(script_dir, '..'))
 sys.path.append(os.path.join(project_dir, 'sources'))
 sys.path.append(os.path.join(project_dir, 'scripts'))
 
-ALLOWED_EXTENSIONS = []
-
+ALLOWED_EXTENSIONS = None
 
 def download_urls_to_dir(urls, output_dir):
     downloader = OpenTorontoDownloader()
