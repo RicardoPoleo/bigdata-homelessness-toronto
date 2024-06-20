@@ -85,14 +85,15 @@ bigdata-homelessness-project/
 │
 ├── src/
 │ ├── init.py
-│ ├── config.py
 │ ├── data_ingestion.py
 │ ├── data_processing.py
 │ ├── analysis.py
 │
 ├── scripts/
+│ ├── download_all_datasets.py
 │ ├── download_data.py
 │ ├── preprocess_data.py
+│ ├── config.py
 │
 ├── docs/
 │ ├── data_sources.md
@@ -102,6 +103,17 @@ bigdata-homelessness-project/
 └── requirements.txt
 ```
 
+
+## TL;DR
+
+Copy-paste and run this code in your terminal to quickly set up the project:
+```sh
+   git clone https://github.com/RicardoPoleo/bigdata-homelessness-toronto.git
+   cd bigdata-homelessness-toronto
+   pip install -r requirements.txt
+   python scripts/config.py
+   python scripts/download_all_datasets.py
+```
 
 ## Installation
 
@@ -114,26 +126,26 @@ To set up the project locally, follow these steps:
     ```
    
 2. Install the required Python packages:
-   ```sh
+```sh
    pip install -r requirements.txt
-   ```
+```
    
 3. Set up the necessary data storage systems (Hadoop, MariaDB, MongoDB, Snowflake) as per the project requirements.
-   ```sh
-   python scr/config.py
-   ```
+```sh
+   python scripts/config.py
+```
 
 ## Usage
 
 1. Data Ingestion: Run the data ingestion scripts to download and store raw data:
-    ```sh
+```sh
     python scripts/download_data.py
-    ```
+```
    
 2. Data Processing: Process and transform the raw data:
-    ```sh
+```sh
     python scripts/preprocess_data.py
-    ```
+```
 
 ## Contributing
 We welcome contributions from the community! Please read our Contributing Guidelines for more information on how to get involved.
