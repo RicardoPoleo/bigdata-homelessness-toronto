@@ -2,6 +2,10 @@
 .idea/
 .idea/*
 !.idea/.gitignore
-
 # Ignore __pycache__ directory
 __pycache__/
+# Ignore .env file
+.env
+
+# Exclude folders where we try new code
+poc/

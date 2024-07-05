@@ -4,6 +4,8 @@ import zipfile
 import json
 import csv
 
+DEFAULT_BASE_PATH = '.'
+
 
 def extract_package_id_from_url(url):
     """
@@ -20,7 +22,8 @@ def extract_package_id_from_url(url):
     return url.rstrip('/').split('/')[-1]
 
 
-class OpenTorontoDownloader:
+class TorontoDownloader:
+    FILE_TO_PATH_LIST = []
     """
     A class to download and process datasets from the Open Toronto portal.
 
@@ -67,7 +70,7 @@ class OpenTorontoDownloader:
         """
         for url in page_urls:
             self.packages[url] = self.get_package_metadata(url)
-        print(f"Loaded {len(page_urls)} pages.")
+        print(f"[Downloader] Added {len(page_urls)} urls to the list.")
 
     def get_datasets(self, extension=None):
         """
@@ -142,7 +145,9 @@ class OpenTorontoDownloader:
         with open(filepath, 'wb') as file:
             file.write(response.content)
 
-        print(f"Downloaded {filename} to {filepath}")
+        self.FILE_TO_PATH_LIST.append((filename, filepath))
+        if self.debug:
+            print(f"Downloaded: {filename} to {filepath}")
         return filepath
 
     def download_datasets(self, output_directory='.', process_after_download=False, extension=None):
@@ -158,19 +163,35 @@ class OpenTorontoDownloader:
         for ds in loaded_datasets:
             if not os.path.exists(output_directory):
                 os.makedirs(output_directory)
-                print(f"Created directory: {output_directory}")
+                print(f"[Downloader] Created directory: {output_directory}")
 
             try:
-                print(f"Downloading {ds['name']} ({ds['size']:.2f} MB) to folder {ds['package_id']}...")
+                print(f"[Downloader] Downloading: '{ds['name']}' ({ds['size']:.2f} MB) in folder '{ds['package_id']}'.")
                 filepath = self.download_dataset(ds['url'], ds['package_id'], output_directory)
-                print(f" Downloaded {ds['name']} to {filepath}")
+                print(f"[Downloader] Downloaded: '{ds['name']}' ({ds['size']:.2f} MB) in folder '{ds['package_id']}'.")
                 if process_after_download:
                     self.process_file(filepath)
             except requests.exceptions.HTTPError as e:
                 print(f"HTTP error occurred while downloading {ds['name']}: {e}")
             except Exception as e:
                 print(f"An error occurred while processing {ds['name']}: {e}")
-        print("All datasets downloaded.")
+        print()
+        print()
+        self.print_file_to_path_list()
+        print()
+        print()
+        print(f"[Downloader] Finished downloading {len(loaded_datasets)} urls.")
+
+    def print_file_to_path_list(self):
+        print("This is the list of downloaded paths and destinations:")
+        for file, path in self.FILE_TO_PATH_LIST:
+            print(f"'{file}':'{path}'")
+
+    def get_path_for_downloaded_file(self, file):
+        for f, p in self.FILE_TO_PATH_LIST:
+            if f == file:
+                return p
+        return None
 
     def process_file(self, filepath):
         """
