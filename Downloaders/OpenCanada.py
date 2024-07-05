@@ -3,6 +3,7 @@ import requests
 import zipfile
 import json
 import csv
+import os
 
 DEFAULT_BASE_PATH = '.'
 
@@ -119,28 +120,24 @@ class TorontoDownloader:
             print(
                 f"{idx}) Page URL: {dataset['page_url']}, Name: {dataset['name']}, Last Modified: {dataset['last_modified']}, Type: {dataset['type']}, Size: {dataset['size']:.2f} MB, URL: {dataset['url']}")
 
-    def download_dataset(self, resource_url, package_id, output_directory='.'):
-        """
-        Downloads a dataset to a specified directory.
-
-        Parameters:
-        - resource_url (str): The URL of the resource to download.
-        - package_id (str): The ID of the package the resource belongs to.
-        - output_directory (str): The directory to download the dataset to. Defaults to the current directory.
-
-        Returns:
-        - str: The filepath to the downloaded dataset.
-        """
+    def download_dataset(self, resource_url, package_id, output_directory='.', if_exists='download'):
         package_dir = os.path.join(output_directory, package_id)
         if not os.path.exists(package_dir):
             os.makedirs(package_dir)
             print(f"Created directory: {package_dir}")
 
-        response = requests.get(resource_url)
-        response.raise_for_status()
-
         filename = resource_url.split("/")[-1]
         filepath = os.path.join(package_dir, filename)
+
+        # Check if file exists when if_exists is set to 'skip'
+        if if_exists == 'skip' and os.path.exists(filepath):
+            print(f"[SKIP] Skipping download, file already exists: {filename}")
+            self.FILE_TO_PATH_LIST.append((filename, filepath))
+            return filepath
+
+        # Proceed to download if if_exists is 'download' or file does not exist
+        response = requests.get(resource_url)
+        response.raise_for_status()
 
         with open(filepath, 'wb') as file:
             file.write(response.content)
@@ -150,7 +147,7 @@ class TorontoDownloader:
             print(f"Downloaded: {filename} to {filepath}")
         return filepath
 
-    def download_datasets(self, output_directory='.', process_after_download=False, extension=None):
+    def download_datasets(self, output_directory='.', process_after_download=False, extension=None, if_exists='download'):
         """
         Downloads and optionally processes datasets, filtered by extension.
 
@@ -167,7 +164,7 @@ class TorontoDownloader:
 
             try:
                 print(f"[Downloader] Downloading: '{ds['name']}' ({ds['size']:.2f} MB) in folder '{ds['package_id']}'.")
-                filepath = self.download_dataset(ds['url'], ds['package_id'], output_directory)
+                filepath = self.download_dataset(ds['url'], ds['package_id'], output_directory, if_exists)
                 print(f"[Downloader] Downloaded: '{ds['name']}' ({ds['size']:.2f} MB) in folder '{ds['package_id']}'.")
                 if process_after_download:
                     self.process_file(filepath)
