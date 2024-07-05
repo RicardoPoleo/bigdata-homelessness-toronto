@@ -34,7 +34,7 @@ class DatasetParent:
 
 class DatasetCheck:
     """
-    A class to make the validation automatically for the datasets that they are given
+    A class to perform validation checks on a dataset
     """
 
     def __init__(self, dataset):
@@ -43,155 +43,108 @@ class DatasetCheck:
         """
         self.dataset = dataset
 
-    def data_quality_check(self):
+
+    def perform_checks(self):
         """
-        Check for missing values and duplicates in the dataset
+        Perform all checks and return a DatasetCheckResult instance
         """
         # Check for missing values and duplicates
         missing_values = self.dataset.isnull().sum()
         duplicates = self.dataset.duplicated().sum()
 
-        # Generate a summary of the data quality checks
-        results = {
-            "missing_values": missing_values.to_dict(),
-            "duplicates": duplicates
+        # Identify outliers in the 'Count' column if it exists
+        if 'Count' in self.dataset.columns:
+            outliers = self.dataset['Count'].describe()
+        else:
+            outliers = None
+
+        # Create and return a DatasetCheckResult instance
+        return DatasetCheckResult(missing_values, duplicates, outliers)
+
+
+class DatasetCheckResult:
+    """
+    A class to store the results of dataset checks
+    """
+
+    def __init__(self, missing_values, duplicates, outliers):
+        self.missing_values = missing_values
+        self.duplicates = duplicates
+        self.outliers = outliers
+
+    def has_irregularities(self):
+        return self.has_missing_values() or self.has_duplicated_values() or self.has_significant_outliers()
+
+    def has_missing_values(self):
+        return any(value > 0 for value in self.missing_values)
+
+    def has_duplicated_values(self):
+        return self.duplicates > 0
+
+    def has_significant_outliers(self):
+        if self.outliers is not None:
+            return self.outliers['max'] > (self.outliers['mean'] + 3 * self.outliers['std'])
+        return False
+
+    def get_missing_values(self):
+        return self.missing_values if self.has_missing_values() else {}
+
+    def get_duplicated_values(self):
+        return self.duplicates if self.has_duplicated_values() else 0
+
+    def get_significant_outliers(self):
+        if self.has_significant_outliers():
+            return self.outliers
+        return {}
+
+    def get_irregularities(self):
+        return {
+            "missing_values": self.get_missing_values(),
+            "duplicates": self.get_duplicated_values(),
+            "outliers": self.get_significant_outliers()
         }
 
-        return results
+    def get_report(self):
+        """
+        Generate and return a report of the dataset checks
+        """
+        report = DatasetCheckReport(self)
+        return report.generate_check_report()
 
-    def data_types_verification(self, expected_data_types):
-        """
-        Verify the data types of the dataset's columns
-        """
-        # Get the actual data types
-        actual_data_types = self.dataset.dtypes
 
-        # Compare with expected data types
-        type_check_results = {}
-        for column, expected_type in expected_data_types.items():
-            actual_type = actual_data_types[column].name
-            type_check_results[column] = {
-                "expected": expected_type,
-                "actual": actual_type,
-                "match": actual_type == expected_type
-            }
+class DatasetCheckReport:
+    """
+    A class to generate and print reports based on DatasetCheckResult
+    """
 
-        return type_check_results
+    def __init__(self, check_result):
+        self.check_result = check_result
 
-    def get_data_types(self):
-        """
-        Return the data types of the dataset's columns in a dictionary format
-        """
-        data_types = self.dataset.dtypes
-        data_types_dict = {column: dtype.name for column, dtype in data_types.items()}
-        return data_types_dict
-
-    def identify_outliers(self, column_name):
-        """
-        Identify outliers in a specified column of the dataset
-        """
-        outliers = self.dataset[column_name].describe()
-        return outliers
-
-    def check_categorical_consistency(self, column_name):
-        """
-        Check the consistency of categorical values in a specified column of the dataset
-        """
-        unique_values = self.dataset[column_name].unique()
-        return unique_values
-
-    def print_data_quality_summary(self):
-        """
-        Print a summary of the data quality check results
-        """
-        quality_check_results = self.data_quality_check()
-
-        # Check for missing values
-        if all(value == 0 for value in quality_check_results['missing_values'].values()):
-            print("No missing values were found in the dataset.")
-        else:
+    def print_missing_values_report(self):
+        if self.check_result.has_missing_values():
             print("Missing values were found in the dataset:")
-            print(quality_check_results['missing_values'])
-
-        # Check for duplicates
-        if quality_check_results['duplicates'] == 0:
-            print("No duplicate records were found.")
+            print(self.check_result.get_missing_values())
         else:
-            print("Duplicate records were found.")
+            print("No missing values were found in the dataset.")
 
-    def print_data_types_summary(self, expected_data_types):
+    def print_duplicated_values_report(self):
+        if self.check_result.has_duplicated_values():
+            print("Duplicate records were found in the dataset.")
+        else:
+            print("No duplicate records were found.")
+
+    def print_significant_outliers_report(self):
+        if self.check_result.has_significant_outliers():
+            print("Significant outliers were found in the 'Count' column:")
+            print(self.check_result.get_significant_outliers())
+        else:
+            print("No significant outliers were found in the 'Count' column.")
+
+    def generate_check_report(self):
         """
-        Print a summary of the data types verification results
+        Generate and return the complete check report
         """
-        data_types_verification_results = self.data_types_verification(expected_data_types)
-
-        # Print the results
-        for column, result in data_types_verification_results.items():
-            print(f"Column: {column}")
-            print(f"  Expected Type: {result['expected']}")
-            print(f"  Actual Type: {result['actual']}")
-            print(f"  Match: {result['match']}")
-
-
-class DatasetCheckResults:
-    """
-    A class to represent the results of a dataset check.
-    """
-
-    def __init__(self):
-        """
-        Initializes the DatasetCheckResults with the data quality and data types results.
-
-        Parameters:
-        - data_quality_results (dict): The results of the data quality check.
-        - data_types_results (dict): The results of the data types verification.
-        """
-        self.data_quality_results = None
-        self.data_types_results = None
-
-    def set_missing_values_results(self, missing_values_results):
-        self.data_quality_results = missing_values_results
-
-    def set_data_types_results(self, data_types_results):
-        self.data_types_results = data_types_results
-
-# Example usage
-
-
-# # Load a sample CSV file into a Pandas DataFrame
-# file_path = '/path/to/your/csv/file.csv'
-# data = pd.read_csv(file_path)
-#
-# # Define the expected data types
-# expected_data_types = {
-#     "_id": "int64",
-#     "Year of death": "int64",
-#     "Month of death": "object",
-#     "Count": "int64"
-# }
-#
-# # Create an instance of the DatasetCheck class
-# dataset_check = DatasetCheck(data)
-#
-# # Perform the data quality check
-# quality_check_results = dataset_check.data_quality_check()
-#
-# # Perform the data types verification
-# data_types_verification_results = dataset_check.data_types_verification(expected_data_types)
-#
-# # Get the actual data types of the dataset
-# actual_data_types = dataset_check.get_data_types()
-#
-# # Identify outliers in the 'Count' column
-# outliers = dataset_check.identify_outliers('Count')
-#
-# # Check the consistency of categorical values in the 'Month of death' column
-# unique_months = dataset_check.check_categorical_consistency('Month of death')
-#
-# # Print the results
-# print("\nActual Data Types:")
-# print(actual_data_types)
-# print("\nOutliers in 'Count' column:")
-# print(outliers)
-# print("\nUnique values in 'Month of death' column:")
-# print(unique_months)
+        self.print_missing_values_report()
+        self.print_duplicated_values_report()
+        self.print_significant_outliers_report()
+        return self
