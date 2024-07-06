@@ -47,6 +47,7 @@ class DatasetCheck:
         """
         Perform all checks and return a DatasetCheckResult instance
         """
+        print("Performing dataset checks...")
         # Check for missing values and duplicates
         missing_values = self.dataset.isnull().sum()
         duplicates = self.dataset.duplicated().sum()
@@ -58,7 +59,18 @@ class DatasetCheck:
             outliers = None
 
         # Check if all values are lowercase
-        lowercase_issues = self.check_lowercase()
+        lowercase_issues = {}
+        try:
+            lowercase_issues = self.check_lowercase()
+        except AttributeError as e:
+            print(f"Error: {e} - Skipping lowercase check...")
+        except Exception as e:
+            print(f"Error: {e} - Skipping lowercase check...")
+        finally:
+            if lowercase_issues:
+                print("Lowercase issues found in the dataset.")
+            else:
+                print("All string values are lowercase in the dataset")
 
         # Check data consistency for categorical values
         categorical_consistency_issues = self.check_categorical_consistency()
@@ -67,8 +79,10 @@ class DatasetCheck:
         columns_to_drop = self.identify_columns_to_drop()
 
         # Create and return a DatasetCheckResult instance
-        return DatasetCheckResult(missing_values, duplicates, outliers, lowercase_issues,
-                                  categorical_consistency_issues, columns_to_drop)
+        result = DatasetCheckResult(missing_values, duplicates, outliers, lowercase_issues,
+                                    categorical_consistency_issues, columns_to_drop)
+        print("Dataset checks completed. Returning report...")
+        return result
 
     def check_lowercase(self):
         """
@@ -90,35 +104,60 @@ class DatasetCheck:
 
     def check_categorical_consistency(self):
         """
-        Check for consistency of categorical values in the dataset
+        Check for consistency of categorical values in the dataset, focusing only on string values.
         """
+        print("Checking categorical consistency...")
         issues = {}
         categorical_columns = self.dataset.select_dtypes(include=['object']).columns
 
+        print(f" Categorical columns: {categorical_columns}")
         for column in categorical_columns:
-            unique_values = self.dataset[column].unique()
-            lowercase_unique_values = set([value.lower() for value in unique_values])
+            print(f"  Checking column: '{column}' type '{self.dataset[column].dtype}'...")
+            # Ensure we only process columns with string values
+            if all(isinstance(x, str) for x in self.dataset[column].dropna()):
+                unique_values = self.dataset[column].unique()
+                print(f"  Unique values: {unique_values}")
+                lowercase_unique_values = set([value.lower() for value in unique_values if isinstance(value, str)])
+                duplicate_count = len(unique_values) - len(lowercase_unique_values)
 
-            if len(unique_values) != len(lowercase_unique_values):
-                issues[column] = {
-                    "unique_values": unique_values,
-                    "lowercase_unique_values": lowercase_unique_values
-                }
+                if duplicate_count > 0:
+                    issues[column] = {
+                        "unique_values": len(unique_values),
+                        "lowercase_unique_values": len(lowercase_unique_values),
+                        "duplicate_count": duplicate_count
+                    }
+            else:
+                print(f"  Skipping column '{column}' as it contains non-string values.")
 
+        print("Categorical consistency check complete...")
+        if issues:
+            print("\nSummary of duplicates found:")
+            for column, info in issues.items():
+                print(f"Column '{column}': {info['duplicate_count']} duplicates")
         return issues
 
     def standardize_categorical_values(self):
         """
         Standardize all categorical values to lowercase and remove extra whitespace
         """
-        for column in self.dataset.select_dtypes(include=['object']).columns:
-            self.dataset[column] = self.dataset[column].str.lower().str.strip()
+        print("Standardizing categorical values...")
+        columns = self.dataset.select_dtypes(include=['object']).columns
+        print(f"Columns to standardize: {columns}")
+        for column in columns:
+            print(f"Standardizing column: {column}, type {self.dataset[column].dtype}")
+            try:
+                self.dataset[column] = self.dataset[column].str.lower().str.strip()
+            except AttributeError as e:
+                print(f"Error: {e} - Skipping column '{column}'...")
+        print("Standardization complete.")
 
     def identify_columns_to_drop(self):
         """
         Identify columns that have all missing values
         """
+        print("Identifying columns with all missing values...")
         columns_to_drop = self.dataset.columns[self.dataset.isnull().all()].tolist()
+        print(f"Candidate Columns to drop: {columns_to_drop}")
         return columns_to_drop
 
     def save_cleaned_data(self, file_path):
@@ -282,19 +321,86 @@ class DatasetCheckReport:
 
 class DatasetPreProcessing:
     """
-    A class to perform pre-processing steps based on DatasetCheckResult
+    A class to perform pre-processing steps on multiple datasets based on their respective DatasetCheckResult instances.
+    """
+
+    def __init__(self):
+        """
+        Initializes the DatasetPreProcessing without any datasets.
+        """
+        self.datasets = []
+        self.check_results = []
+
+    def add_dataset(self, dataset, check_result):
+        """
+        Add a dataset along with its check result to the list of datasets to be preprocessed.
+        """
+        self.datasets.append(dataset)
+        self.check_results.append(check_result)
+
+    def preprocess_all(self):
+        """
+        Perform pre-processing steps on all added datasets based on their check results.
+        """
+        preprocessed_datasets = []
+        for dataset, check_result in zip(self.datasets, self.check_results):
+            preprocessor = DatasetPreProcessingSingle(dataset, check_result)
+            preprocessed_dataset = preprocessor.preprocess()
+            preprocessed_datasets.append(preprocessed_dataset)
+        return preprocessed_datasets
+
+    def merge_datasets(self, preprocessed_datasets):
+        """
+        Merge all preprocessed datasets into a single dataset.
+        """
+        merged_dataset = pd.concat(preprocessed_datasets, ignore_index=True)
+        return merged_dataset
+
+    def save_merged_dataset(self, merged_dataset, file_path, format='csv'):
+        """
+        Save the merged dataset to a specified file path in the specified format.
+        """
+        if format == 'csv':
+            merged_dataset.to_csv(file_path, index=False)
+        elif format == 'excel':
+            merged_dataset.to_excel(file_path, index=False)
+        elif format == 'json':
+            merged_dataset.to_json(file_path, orient='records')
+        else:
+            print(f"Format '{format}' is not supported.")
+        print(f"Merged dataset saved to {file_path} in {format} format.")
+
+    def execute(self, file_path, format='csv'):
+        """
+        Execute the preprocessing, merging, and saving of all added datasets.
+        """
+        preprocessed_datasets = self.preprocess_all()
+        merged_dataset = self.merge_datasets(preprocessed_datasets)
+        self.save_merged_dataset(merged_dataset, file_path, format)
+
+
+class DatasetPreProcessingSingle:
+    """
+    A class to perform pre-processing steps based on a single DatasetCheckResult.
     """
 
     def __init__(self, dataset, check_result):
         """
-        Initializes the DatasetPreProcessing with a dataset (Pandas DataFrame) and a DatasetCheckResult instance
+        Initializes the DatasetPreProcessingSingle with a dataset and its DatasetCheckResult instance.
+
+        Parameters:
+        - dataset (Pandas DataFrame): The dataset to be preprocessed.
+        - check_result (DatasetCheckResult): The check result of the dataset.
         """
         self.dataset = dataset
         self.check_result = check_result
 
     def preprocess(self):
         """
-        Perform pre-processing steps based on the check result
+        Perform pre-processing steps based on the check result.
+
+        Returns:
+        - Pandas DataFrame: The preprocessed dataset.
         """
         # Drop columns with all missing values
         if self.check_result.has_columns_to_drop():
@@ -311,14 +417,11 @@ class DatasetPreProcessing:
 
     def standardize_categorical_values(self):
         """
-        Standardize all categorical values to lowercase and remove extra whitespace
+        Standardize all categorical values to lowercase and remove extra whitespace.
         """
         for column in self.dataset.select_dtypes(include=['object']).columns:
-            self.dataset[column] = self.dataset[column].str.lower().str.strip()
-
-    def save_preprocessed_data(self, file_path):
-        """
-        Save the pre-processed dataset to a specified file path
-        """
-        self.dataset.to_csv(file_path, index=False)
-        print(f"Pre-processed data saved to {file_path}")
+            try:
+                self.dataset[column] = self.dataset[column].str.lower().str.strip()
+            except AttributeError as e:
+                print(f"Error: {e} - Skipping column '{column}'...")
+        print("Standardization of categorical values complete.")
